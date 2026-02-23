@@ -26,3 +26,5 @@ Thumbs.db
 # Logs
 *.log
 logs/
+app.log
+load-generator.log
