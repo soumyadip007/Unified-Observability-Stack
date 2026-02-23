@@ -21,15 +21,15 @@ exporters:
     endpoint: "0.0.0.0:8889"
     const_labels:
       label1: value1
-  logging:
-    loglevel: info
+  debug:
+    verbosity: normal
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [resource, batch]
-      exporters: [logging]
+      exporters: [debug]
     metrics:
       receivers: [otlp]
       processors: [resource, batch]

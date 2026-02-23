@@ -4,7 +4,8 @@
   "description": "Load generator for demo app",
   "main": "load.js",
   "scripts": {
-    "start": "node load.js"
+    "start": "node load.js",
+    "dev": "node load.js"
   },
   "dependencies": {
     "axios": "^1.6.0"

@@ -10,7 +10,7 @@ const sdk = new NodeSDK({
     [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'demo-app',
   }),
   traceExporter: new OTLPTraceExporter({
-    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://otel-collector:4318',
+    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318',
   }),
   instrumentations: [getNodeAutoInstrumentations()],
 });

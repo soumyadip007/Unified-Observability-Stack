@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const APP_URL = process.env.APP_URL || 'http://app:3000';
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const CHAOS_MODE = process.env.CHAOS_MODE === 'true';
 const REQUESTS_PER_SECOND = 10;
 const DELAY_MS = 1000 / REQUESTS_PER_SECOND; // 100ms between requests
