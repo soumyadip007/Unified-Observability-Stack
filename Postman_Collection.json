@@ -1,0 +1,247 @@
+{
+	"info": {
+		"_postman_id": "unified-observability-stack",
+		"name": "Unified Observability Stack - Demo API",
+		"description": "Collection for testing the demo SaaS app endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"health"
+					]
+				},
+				"description": "Check if the app is healthy"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Users",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/api/users",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"users"
+					]
+				},
+				"description": "Fast, stable endpoint - always returns 200 OK"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Orders",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/api/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"orders"
+					]
+				},
+				"description": "Random latency 50-300ms, 2% error rate"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Orders (Force Error)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Force-Error",
+						"value": "true",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3001/api/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"orders"
+					]
+				},
+				"description": "Force an error response for testing"
+			},
+			"response": []
+		},
+		{
+			"name": "Slow Endpoint",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/api/slow",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"slow"
+					]
+				},
+				"description": "Latency spikes 2-5 seconds - for demo purposes"
+			},
+			"response": []
+		},
+		{
+			"name": "Slow Endpoint (Force Error)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Force-Error",
+						"value": "true",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3001/api/slow",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"slow"
+					]
+				},
+				"description": "Force an error on slow endpoint"
+			},
+			"response": []
+		},
+		{
+			"name": "Prometheus Metrics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/metrics",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"metrics"
+					]
+				},
+				"description": "Get Prometheus metrics from the app"
+			},
+			"response": []
+		},
+		{
+			"name": "OTel Collector Metrics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8889/metrics",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8889",
+					"path": [
+						"metrics"
+					]
+				},
+				"description": "Get metrics from OpenTelemetry Collector"
+			},
+			"response": []
+		},
+		{
+			"name": "Prometheus Targets",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9090/api/v1/targets",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"api",
+						"v1",
+						"targets"
+					]
+				},
+				"description": "Check Prometheus scrape targets status"
+			},
+			"response": []
+		},
+		{
+			"name": "Grafana Health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/api/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"health"
+					]
+				},
+				"description": "Check Grafana health"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "grafana_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "prometheus_url",
+			"value": "http://localhost:9090",
+			"type": "string"
+		}
+	]
+}
