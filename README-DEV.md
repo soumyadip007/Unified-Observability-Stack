@@ -59,19 +59,19 @@ CHAOS_MODE=true npm run dev
 ## Environment Variables
 
 ### App (app/index.js)
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Defaults to `http://localhost:4318`
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Defaults to `http://localhost:4317` (OTel optional, disabled for now)
 - `OTEL_SERVICE_NAME`: Defaults to `demo-app`
-- `PORT`: Defaults to `3000`
+- `PORT`: Defaults to `3001` (3000 is used by Grafana)
 
 ### Load Generator (load-generator/load.js)
-- `APP_URL`: Defaults to `http://localhost:3000`
+- `APP_URL`: Defaults to `http://localhost:3001`
 - `CHAOS_MODE`: Set to `true` to enable chaos mode
 
 ## Access Services
 
-- **App API**: http://localhost:3000
-  - Health: http://localhost:3000/health
-  - Metrics: http://localhost:3000/metrics
+- **App API**: http://localhost:3001 (port 3001 to avoid conflict with Grafana)
+  - Health: http://localhost:3001/health
+  - Metrics: http://localhost:3001/metrics
   - Endpoints: `/api/orders`, `/api/users`, `/api/slow`
 
 - **Grafana**: http://localhost:3000
