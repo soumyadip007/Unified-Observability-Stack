@@ -98,6 +98,13 @@ http_request_duration_seconds_bucket{route="/api/orders",le="0.1"} 45
 active_connections 3
 ```
 
+**Data Types Stored in Prometheus (Direct Path):**
+- **Counters:** `http_requests_total` - Cumulative count of HTTP requests
+- **Histograms:** `http_request_duration_seconds_bucket` - Request duration distribution
+- **Gauges:** `active_connections` - Current number of active connections
+- **Labels:** `route`, `status`, `method` (custom labels from app)
+- **Default Metrics:** Node.js process metrics (CPU, memory, etc.)
+
 ---
 
 ### Path 2: OTel Metrics via Collector
@@ -137,6 +144,17 @@ open http://localhost:9090/targets
 http_server_duration_milliseconds_count{http_route="/api/orders",http_method="GET",http_status_code="200"} 100
 http_server_duration_milliseconds_sum{http_route="/api/orders"} 15000.5
 ```
+
+**Data Types Stored in Prometheus (OTel Path):**
+- **Histograms:** `http_server_duration_milliseconds_bucket` - HTTP request duration (milliseconds)
+- **Counters:** `http_server_duration_milliseconds_count` - Total request count
+- **Sums:** `http_server_duration_milliseconds_sum` - Total duration sum
+- **Gauges:** `http_server_request_size`, `http_server_response_size` - Request/response sizes
+- **Labels:** 
+  - `http_route`, `http_method`, `http_status_code` (HTTP attributes)
+  - `net_host_name`, `net_host_port` (Network attributes)
+  - `otel_scope_name` (OTel instrumentation scope)
+  - `job="demo-app"`, `label1="value1"` (From collector config)
 
 ---
 
@@ -462,24 +480,319 @@ open http://localhost:3000
 
 ---
 
+## 🔍 How to Segregate OTel vs Direct Prometheus Metrics in Grafana
+
+### Identifying Metrics by Source
+
+In Grafana, you can distinguish metrics by their **metric names** and **labels**:
+
+#### Direct Prometheus Metrics (from prom-client)
+
+**Metric Name Patterns:**
+- `http_requests_total` - Request counter
+- `http_request_duration_seconds_*` - Duration histogram (seconds)
+- `active_connections` - Connection gauge
+- `process_*` - Node.js process metrics
+- `nodejs_*` - Node.js runtime metrics
+
+**Label Characteristics:**
+- Labels: `route`, `status`, `method` (simple, custom labels)
+- No `otel_scope_name` label
+- No `job` label (or `job="demo-app"` from direct scrape)
+
+**Example Query (Direct Prometheus Only):**
+```promql
+# Only direct Prometheus metrics
+http_requests_total{route!=""}
+
+# Exclude OTel metrics
+{__name__=~"http_request.*", !otel_scope_name=~".*"}
+```
+
+#### OTel Metrics (via Collector)
+
+**Metric Name Patterns:**
+- `http_server_duration_milliseconds_*` - Duration histogram (milliseconds)
+- `http_server_request_size` - Request size gauge
+- `http_server_response_size` - Response size gauge
+- `otelcol_*` - Collector internal metrics
+
+**Label Characteristics:**
+- Labels: `http_route`, `http_method`, `http_status_code` (OTel semantic conventions)
+- **Always has:** `otel_scope_name` label (e.g., `@opentelemetry/instrumentation-http`)
+- **Always has:** `job="demo-app"` label (from collector config)
+- **May have:** `net_host_name`, `net_host_port` (network attributes)
+- **May have:** `label1="value1"` (from collector const_labels)
+
+**Example Query (OTel Only):**
+```promql
+# Only OTel metrics
+http_server_duration_milliseconds_count{otel_scope_name=~".*"}
+
+# Filter by OTel scope
+{otel_scope_name=~"@opentelemetry.*"}
+```
+
+### Creating Segregated Panels in Grafana
+
+#### Panel 1: Direct Prometheus Metrics Only
+
+**Query:**
+```promql
+rate(http_requests_total[1m])
+```
+
+**Filter to exclude OTel:**
+```promql
+rate(http_requests_total{!otel_scope_name=~".*"}[1m])
+```
+
+**What Shows:**
+- Metrics from `prom-client` library
+- Custom app metrics
+- Direct scrape metrics
+
+---
+
+#### Panel 2: OTel Metrics Only
+
+**Query:**
+```promql
+rate(http_server_duration_milliseconds_count[1m])
+```
+
+**Filter by OTel scope:**
+```promql
+rate(http_server_duration_milliseconds_count{otel_scope_name=~"@opentelemetry.*"}[1m])
+```
+
+**What Shows:**
+- Metrics from OTel auto-instrumentation
+- Metrics via collector
+- OTel semantic convention labels
+
+---
+
+#### Panel 3: Both Sources (Combined)
+
+**Query:**
+```promql
+# Combine both sources
+rate(http_requests_total[1m]) or rate(http_server_duration_milliseconds_count[1m])
+```
+
+**What Shows:**
+- All metrics from both sources
+- Can compare direct vs OTel metrics
+
+---
+
+### Quick Identification Guide
+
+| Feature | Direct Prometheus | OTel (via Collector) |
+|---------|------------------|----------------------|
+| **Metric Prefix** | `http_request_*` | `http_server_*` |
+| **Duration Unit** | `seconds` | `milliseconds` |
+| **Label Style** | `route`, `status` | `http_route`, `http_status_code` |
+| **OTel Scope Label** | ❌ No | ✅ Yes (`otel_scope_name`) |
+| **Job Label** | `job="demo-app"` (from scrape) | `job="demo-app"` (from collector) |
+| **Network Labels** | ❌ No | ✅ Yes (`net_host_name`, `net_host_port`) |
+| **Source** | `/metrics` endpoint | OTLP → Collector → Exporter |
+
+---
+
+### Grafana Explore: Filtering by Source
+
+**In Grafana Explore tab:**
+
+1. **View Only Direct Prometheus Metrics:**
+   ```promql
+   {__name__=~"http_request.*", !otel_scope_name=~".*"}
+   ```
+
+2. **View Only OTel Metrics:**
+   ```promql
+   {otel_scope_name=~"@opentelemetry.*"}
+   ```
+
+3. **View Both (All HTTP Metrics):**
+   ```promql
+   {__name__=~"http.*"}
+   ```
+
+4. **Compare Direct vs OTel:**
+   ```promql
+   # Direct
+   rate(http_requests_total[1m])
+   
+   # OTel
+   rate(http_server_duration_milliseconds_count[1m])
+   ```
+
+---
+
+## 📊 Complete Data Types Stored in Prometheus
+
+### From Direct Prometheus Scrape (app:3001/metrics)
+
+**Source:** `prom-client` library in app
+
+**Data Types:**
+
+1. **Counters:**
+   - `http_requests_total` - Total HTTP requests
+   - `process_cpu_user_seconds_total` - CPU user time
+   - `process_cpu_system_seconds_total` - CPU system time
+
+2. **Histograms:**
+   - `http_request_duration_seconds_bucket` - Request duration buckets
+   - `http_request_duration_seconds_sum` - Total duration sum
+   - `http_request_duration_seconds_count` - Total request count
+
+3. **Gauges:**
+   - `active_connections` - Current active connections
+   - `process_resident_memory_bytes` - Memory usage
+   - `nodejs_heap_size_total_bytes` - Heap size
+
+4. **Labels Used:**
+   - `route` - API endpoint path
+   - `status` - HTTP status code
+   - `method` - HTTP method (GET, POST, etc.)
+
+**Storage Format:**
+- Time series with labels
+- Scraped every 5 seconds
+- Stored in Prometheus TSDB
+
+---
+
+### From OTel Collector (otel-collector:8889/metrics)
+
+**Source:** OpenTelemetry SDK → Collector → Prometheus Exporter
+
+**Data Types:**
+
+1. **Histograms:**
+   - `http_server_duration_milliseconds_bucket` - HTTP duration buckets (milliseconds)
+   - `http_server_duration_milliseconds_sum` - Total duration sum
+   - `http_server_duration_milliseconds_count` - Total request count
+
+2. **Gauges:**
+   - `http_server_request_size` - HTTP request body size
+   - `http_server_response_size` - HTTP response body size
+
+3. **Labels Used (OTel Semantic Conventions):**
+   - `http_route` - HTTP route path
+   - `http_method` - HTTP method
+   - `http_status_code` - HTTP status code
+   - `http_scheme` - HTTP scheme (http/https)
+   - `http_flavor` - HTTP version (1.1, 2.0)
+   - `net_host_name` - Network hostname
+   - `net_host_port` - Network port
+   - `otel_scope_name` - OTel instrumentation scope
+   - `otel_scope_version` - OTel scope version
+   - `job` - Job name (from collector config)
+   - `label1` - Custom label (from collector config)
+
+**Storage Format:**
+- Time series with OTel semantic convention labels
+- Scraped every 15 seconds
+- Stored in Prometheus TSDB
+- Includes trace-derived metrics
+
+---
+
+### From Collector Internal Telemetry (otel-collector:8888/metrics)
+
+**Source:** OTel Collector itself
+
+**Data Types:**
+
+1. **Counters:**
+   - `otelcol_receiver_accepted_spans_total` - Spans received
+   - `otelcol_exporter_sent_spans_total` - Spans exported
+   - `otelcol_processor_batch_batch_send_size_total` - Batch sizes
+
+2. **Gauges:**
+   - `otelcol_processor_batch_batch_send_size` - Current batch size
+   - `otelcol_receiver_refused_spans` - Refused spans
+
+3. **Labels Used:**
+   - `otelcol_component_id` - Component identifier
+   - `otelcol_component_kind` - Component type (receiver, processor, exporter)
+   - `otelcol_signal` - Signal type (traces, metrics, logs)
+
+**Storage Format:**
+- Collector health and performance metrics
+- Scraped every 15 seconds
+- Stored in Prometheus TSDB
+
+---
+
 ## 📝 Summary
 
 ### Prometheus (The Database)
-- **Stores:** All metrics from app (direct) and OTel (via collector)
-- **Scrapes:** `app:3001/metrics` and `otel-collector:8889/metrics`
-- **Queries:** PromQL for instant and range queries
-- **Access:** http://localhost:9090
+
+**Stores ALL metrics from 3 sources:**
+
+1. **Direct App Metrics (prom-client):**
+   - Metric names: `http_request_*`, `active_connections`
+   - Labels: `route`, `status`, `method`
+   - Scraped from: `app:3001/metrics` (every 5s)
+   - **Data Types:** Counters, Histograms, Gauges
+
+2. **OTel Metrics (via Collector):**
+   - Metric names: `http_server_*`
+   - Labels: `http_route`, `http_method`, `otel_scope_name`, etc.
+   - Scraped from: `otel-collector:8889/metrics` (every 15s)
+   - **Data Types:** Histograms, Gauges (from OTel auto-instrumentation)
+
+3. **Collector Internal Metrics:**
+   - Metric names: `otelcol_*`
+   - Labels: `otelcol_component_*`, `otelcol_signal`
+   - Scraped from: `otel-collector:8888/metrics` (every 15s)
+   - **Data Types:** Counters, Gauges (collector telemetry)
+
+**Storage:**
+- All metrics stored in Prometheus TSDB
+- Time series format with labels
+- Retention: 1 hour (demo config)
+- Queryable via PromQL
 
 ### Grafana (The Visualizer)
-- **Reads:** From Prometheus datasource (doesn't store)
-- **Shows:** Pre-built dashboards with panels
-- **Queries:** Sends PromQL to Prometheus, displays results
-- **Access:** http://localhost:3000
+
+**How to Segregate:**
+
+1. **By Metric Name:**
+   - Direct: `http_request_*` (seconds)
+   - OTel: `http_server_*` (milliseconds)
+
+2. **By Labels:**
+   - Direct: Has `route`, `status` (no `otel_scope_name`)
+   - OTel: Has `otel_scope_name`, `http_route`, `http_method`
+
+3. **By Query Filter:**
+   ```promql
+   # Direct only
+   {!otel_scope_name=~".*"}
+   
+   # OTel only
+   {otel_scope_name=~"@opentelemetry.*"}
+   ```
+
+**Reads from Prometheus:**
+- Queries Prometheus datasource in real-time
+- No data storage (queries on-demand)
+- Can filter/aggregate by source using PromQL
 
 ### Data Flow Summary
 1. **App generates metrics** (prom-client + OTel SDK)
 2. **Prometheus scrapes and stores** (direct + via collector)
-3. **Grafana queries Prometheus** (real-time)
+3. **Grafana queries Prometheus** (real-time, can filter by source)
 4. **Grafana visualizes** (dashboards, panels, alerts)
 
-**Remember:** Grafana is a visualization tool - it doesn't store data, it queries Prometheus on-demand!
+**Remember:** 
+- **Prometheus stores everything** - both direct and OTel metrics
+- **Grafana queries and filters** - use metric names and labels to segregate
+- **OTel metrics have `otel_scope_name` label** - use this to identify OTel metrics
+- **Direct metrics use simple labels** - `route`, `status`, `method`
