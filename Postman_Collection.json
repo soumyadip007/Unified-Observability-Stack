@@ -206,6 +206,110 @@
 			"response": []
 		},
 		{
+			"name": "OTel Collector Internal Metrics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8888/metrics",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8888",
+					"path": [
+						"metrics"
+					]
+				},
+				"description": "Get OTel Collector internal telemetry metrics"
+			},
+			"response": []
+		},
+		{
+			"name": "Prometheus Query - App Metrics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9090/api/v1/query?query=http_requests_total",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"api",
+						"v1",
+						"query"
+					],
+					"query": [
+						{
+							"key": "query",
+							"value": "http_requests_total"
+						}
+					]
+				},
+				"description": "Query Prometheus for app metrics (from prom-client)"
+			},
+			"response": []
+		},
+		{
+			"name": "Prometheus Query - OTel Metrics",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9090/api/v1/query?query=http_server_duration_milliseconds_count",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"api",
+						"v1",
+						"query"
+					],
+					"query": [
+						{
+							"key": "query",
+							"value": "http_server_duration_milliseconds_count"
+						}
+					]
+				},
+				"description": "Query Prometheus for OTel metrics (from collector)"
+			},
+			"response": []
+		},
+		{
+			"name": "Prometheus Query - Request Rate",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9090/api/v1/query?query=rate(http_requests_total[1m])",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"api",
+						"v1",
+						"query"
+					],
+					"query": [
+						{
+							"key": "query",
+							"value": "rate(http_requests_total[1m])"
+						}
+					]
+				},
+				"description": "Query request rate (used in Grafana dashboard)"
+			},
+			"response": []
+		},
+		{
 			"name": "Grafana Health",
 			"request": {
 				"method": "GET",
@@ -223,6 +327,67 @@
 					]
 				},
 				"description": "Check Grafana health"
+			},
+			"response": []
+		},
+		{
+			"name": "Grafana Datasources",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Basic YWRtaW46YWRtaW4=",
+						"type": "basic",
+						"description": "Basic auth: admin/admin"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/api/datasources",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"datasources"
+					]
+				},
+				"description": "List Grafana datasources (Prometheus should be here)"
+			},
+			"response": []
+		},
+		{
+			"name": "Grafana Dashboards",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Basic YWRtaW46YWRtaW4=",
+						"type": "basic"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/api/search?type=dash-db",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"api",
+						"search"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "dash-db"
+						}
+					]
+				},
+				"description": "List Grafana dashboards (Service Overview should be here)"
 			},
 			"response": []
 		}
