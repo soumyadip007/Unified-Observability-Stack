@@ -1,0 +1,12 @@
+{
+  "name": "load-generator",
+  "version": "1.0.0",
+  "description": "Load generator for demo app",
+  "main": "load.js",
+  "scripts": {
+    "start": "node load.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
