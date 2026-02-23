@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'demo-cluster'
+    environment: 'demo'
+
+# Alertmanager configuration (not used in this demo, but can be added)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: []
+
+# Load rules once and periodically evaluate them (not used in this demo)
+# rule_files:
+#   - "alert_rules.yml"
+
+scrape_configs:
+  # Scrape the Node.js app metrics endpoint (PRIMARY SOURCE)
+  - job_name: 'demo-app'
+    static_configs:
+      - targets: ['app:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    scrape_timeout: 5s
+
+  # Scrape the OpenTelemetry Collector metrics (trace-derived metrics)
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
