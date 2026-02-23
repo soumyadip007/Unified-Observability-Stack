@@ -1,27 +1,32 @@
-// Initialize OpenTelemetry FIRST (before any other imports) - Optional
+// Initialize OpenTelemetry FIRST (before any other imports)
 let sdk = null;
 try {
   const { NodeSDK } = require('@opentelemetry/sdk-node');
-  const { OTLPTraceExporter } = require('@opentelemetry/exporter-otlp-grpc');
   const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
   const { Resource } = require('@opentelemetry/resources');
   const { SEMRESATTRS_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
+
+  // OTLP endpoint - auto-instrumentations will use environment variables
+  const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317';
+  
+  // Set environment variables for OTLP exporter (used by auto-instrumentations)
+  process.env.OTEL_EXPORTER_OTLP_ENDPOINT = otlpEndpoint;
+  process.env.OTEL_EXPORTER_OTLP_PROTOCOL = 'grpc';
 
   sdk = new NodeSDK({
     resource: new Resource({
       [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'demo-app',
     }),
-    traceExporter: new OTLPTraceExporter({
-      url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317',
-    }),
     instrumentations: [getNodeAutoInstrumentations()],
   });
 
   sdk.start();
-  console.log('OpenTelemetry SDK initialized');
+  console.log('✅ OpenTelemetry SDK initialized');
+  console.log(`   Sending traces/metrics to: ${otlpEndpoint}`);
+  console.log('   Protocol: gRPC (OTLP)');
 } catch (error) {
-  console.warn('OpenTelemetry not available (optional):', error.message);
-  console.log('Running without distributed tracing - metrics only');
+  console.warn('⚠️  OpenTelemetry not available (optional):', error.message);
+  console.log('   Running without distributed tracing - metrics only');
 }
 
 // Now import Express and other modules

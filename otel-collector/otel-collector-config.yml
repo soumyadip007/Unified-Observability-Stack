@@ -22,15 +22,19 @@ exporters:
     const_labels:
       label1: value1
   debug:
-    verbosity: normal
+    verbosity: detailed
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [resource, batch]
-      exporters: [debug]
+      exporters: [debug, prometheus]
     metrics:
       receivers: [otlp]
       processors: [resource, batch]
       exporters: [prometheus]
+  telemetry:
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
