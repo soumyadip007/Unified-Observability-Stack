@@ -10,7 +10,7 @@ scrape_configs:
   # Use host.docker.internal to access host machine from Docker container
   - job_name: 'demo-app'
     static_configs:
-      - targets: ['host.docker.internal:3000']
+      - targets: ['host.docker.internal:3001']
     metrics_path: '/metrics'
     scrape_interval: 5s
     scrape_timeout: 5s

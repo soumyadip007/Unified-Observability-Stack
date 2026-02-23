@@ -1,29 +1,35 @@
-// Initialize OpenTelemetry FIRST (before any other imports)
-const { NodeSDK } = require('@opentelemetry/sdk-node');
-const { OTLPTraceExporter } = require('@opentelemetry/exporter-otlp-http');
-const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const { Resource } = require('@opentelemetry/resources');
-const { SEMRESATTRS_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
+// Initialize OpenTelemetry FIRST (before any other imports) - Optional
+let sdk = null;
+try {
+  const { NodeSDK } = require('@opentelemetry/sdk-node');
+  const { OTLPTraceExporter } = require('@opentelemetry/exporter-otlp-grpc');
+  const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+  const { Resource } = require('@opentelemetry/resources');
+  const { SEMRESATTRS_SERVICE_NAME } = require('@opentelemetry/semantic-conventions');
 
-const sdk = new NodeSDK({
-  resource: new Resource({
-    [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'demo-app',
-  }),
-  traceExporter: new OTLPTraceExporter({
-    url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318',
-  }),
-  instrumentations: [getNodeAutoInstrumentations()],
-});
+  sdk = new NodeSDK({
+    resource: new Resource({
+      [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'demo-app',
+    }),
+    traceExporter: new OTLPTraceExporter({
+      url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4317',
+    }),
+    instrumentations: [getNodeAutoInstrumentations()],
+  });
 
-sdk.start();
-console.log('OpenTelemetry SDK initialized');
+  sdk.start();
+  console.log('OpenTelemetry SDK initialized');
+} catch (error) {
+  console.warn('OpenTelemetry not available (optional):', error.message);
+  console.log('Running without distributed tracing - metrics only');
+}
 
 // Now import Express and other modules
 const express = require('express');
 const client = require('prom-client');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3001;
 
 // Create a Registry to register the metrics
 const register = new client.Registry();
@@ -170,8 +176,12 @@ app.listen(PORT, '0.0.0.0', () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
-  sdk.shutdown()
-    .then(() => console.log('OpenTelemetry SDK shut down'))
-    .catch((error) => console.log('Error shutting down SDK', error))
-    .finally(() => process.exit(0));
+  if (sdk) {
+    sdk.shutdown()
+      .then(() => console.log('OpenTelemetry SDK shut down'))
+      .catch((error) => console.log('Error shutting down SDK', error))
+      .finally(() => process.exit(0));
+  } else {
+    process.exit(0);
+  }
 });
