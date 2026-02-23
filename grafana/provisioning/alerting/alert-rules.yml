@@ -1,0 +1,21 @@
+# Grafana Alert Rules
+# Note: Grafana 8+ uses unified alerting. These rules can be configured via:
+# 1. Grafana UI (recommended for demo)
+# 2. Grafana API
+# 3. Terraform/Infrastructure as Code
+
+# Alert Rule: High Error Rate
+# Name: High Error Rate Detected
+# Condition: sum(rate(http_requests_total{status=~"5.."}[1m])) / sum(rate(http_requests_total[1m])) * 100 > 5
+# Evaluation: Every 15s
+# For: 30s (2 evaluation periods)
+# Severity: critical
+
+# To configure this alert in Grafana UI:
+# 1. Go to Alerting > Alert rules
+# 2. Create new rule
+# 3. Use the Prometheus datasource
+# 4. Set the query as shown above
+# 5. Set condition: IS ABOVE 5
+# 6. Set evaluation interval: 15s
+# 7. Set for duration: 30s
