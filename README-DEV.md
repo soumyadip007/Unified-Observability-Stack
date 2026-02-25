@@ -71,7 +71,7 @@ CHAOS_MODE=true npm run dev
 
 - **App API**: http://localhost:3001 (port 3001 to avoid conflict with Grafana)
   - Health: http://localhost:3001/health
-  - Metrics: http://localhost:3001/metrics
+  - Metrics: via OTel only (no `/metrics` on app). Collector exposes at http://localhost:8889/metrics when running in Docker.
   - Endpoints: `/api/orders`, `/api/users`, `/api/slow`
 
 - **Grafana**: http://localhost:3000

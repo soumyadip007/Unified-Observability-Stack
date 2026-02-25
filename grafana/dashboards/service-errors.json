@@ -1,0 +1,74 @@
+{
+  "title": "Service – Errors",
+  "tags": ["observability", "demo", "otel", "errors"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Error rate % by route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [{
+        "expr": "sum(rate(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1m])) by (http_route) / sum(rate(http_server_duration_milliseconds_count[1m])) by (http_route) * 100",
+        "legendFormat": "{{http_route}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"value": null, "color": "green"}, {"value": 5, "color": "yellow"}, {"value": 10, "color": "red"}]}, "custom": {"drawStyle": "line", "fillOpacity": 20}}},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "id": 2,
+      "title": "5xx rate over time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [{
+        "expr": "sum(rate(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[1m]))",
+        "legendFormat": "5xx",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps", "custom": {"drawStyle": "line", "fillOpacity": 20}}},
+      "options": {"legend": {"displayMode": "list"}}
+    },
+    {
+      "id": 3,
+      "title": "4xx vs 5xx (count last 5m)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "sum(increase(http_server_duration_milliseconds_count{http_status_code=~\"4..\"}[5m]))",
+          "legendFormat": "4xx",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m]))",
+          "legendFormat": "5xx",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "fillOpacity": 10}}},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "id": 4,
+      "title": "Top error routes (5xx count 5m)",
+      "type": "table",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{
+        "expr": "topk(10, sum(increase(http_server_duration_milliseconds_count{http_status_code=~\"5..\"}[5m])) by (http_route))",
+        "format": "table",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"custom": {"align": "auto"}}},
+      "options": {}
+    }
+  ],
+  "time": {"from": "now-30m", "to": "now"},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "editable": true,
+  "links": []
+}

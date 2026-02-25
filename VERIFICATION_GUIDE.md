@@ -1,113 +1,29 @@
-# Data Flow Verification Guide: Prometheus vs Grafana
+# Data Flow Verification Guide: Prometheus vs Grafana (Option A: OTel-First)
 
-## 📊 Complete Data Flow Architecture
+## 📊 Complete Data Flow Architecture (Single Pipeline)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Node.js App                              │
-│  ┌────────────────────┐         ┌──────────────────────────┐  │
-│  │  prom-client        │         │  OpenTelemetry SDK        │  │
-│  │  (Custom Metrics)   │         │  (Auto-instrumentation)   │  │
-│  └────────────────────┘         └──────────────────────────┘  │
-│           │                                │                    │
-│           │ /metrics endpoint              │ OTLP (gRPC)        │
-│           │ (Prometheus format)           │ (port 4317)        │
-└───────────┼────────────────────────────────┼────────────────────┘
-            │                                │
-            ▼                                ▼
-┌──────────────────────┐         ┌──────────────────────────┐
-│   Prometheus         │         │  OTel Collector          │
-│   (Direct Scrape)    │         │  (Receives OTLP)         │
-│                      │         └──────────────────────────┘
-│  Scrapes:            │                    │
-│  - app:3001/metrics  │                    │ Processes
-│  - otel:8889/metrics │                    │ Exports
-│  - otel:8888/metrics │                    │
-└──────────────────────┘                    │
-            │                                │
-            │                                ▼
-            │                    ┌──────────────────────────┐
-            │                    │  Prometheus Exporter     │
-            │                    │  (port 8889)             │
-            │                    └──────────────────────────┘
-            │                                │
-            └────────────────────────────────┘
-                        │
-                        ▼
-            ┌──────────────────────────┐
-            │   Prometheus Storage     │
-            │   (Time Series DB)       │
-            │                          │
-            │  Stores ALL metrics:     │
-            │  - App metrics (prom)    │
-            │  - OTel metrics          │
-            │  - Collector metrics     │
-            └──────────────────────────┘
-                        │
-                        │ Queries via PromQL
-                        ▼
-            ┌──────────────────────────┐
-            │      Grafana              │
-            │  (Visualization Layer)     │
-            │                          │
-            │  Reads from Prometheus:   │
-            │  - Dashboard panels       │
-            │  - Alerts                │
-            │  - Explore queries       │
-            └──────────────────────────┘
+│  OpenTelemetry SDK only (traces + metrics, no /metrics)          │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │ OTLP (gRPC, port 4317)
+                               ▼
+                    ┌──────────────────┐
+                    │  OTel Collector   │  :4317, :4318, :8889, :8888
+                    └────────┬──────────┘
+                             │ Prometheus scrapes only collector
+                             ▼
+                    ┌──────────────────┐      ┌──────────┐
+                    │   Prometheus     │─────▶│ Grafana  │
+                    └──────────────────┘      └──────────┘
 ```
+
+**Summary:** The app does not expose `/metrics`. All metrics and traces go App → OTel Collector; Prometheus scrapes only the collector. Grafana queries Prometheus (OTel metric names: `http_server_duration_milliseconds_*`, labels: `http_route`, `http_status_code`).
 
 ## 🔍 How Data Populates in Prometheus
 
-### Path 1: Direct App Metrics (prom-client)
-
-**Source:** `app/index.js` using `prom-client` library
-
-**Metrics Generated:**
-- `http_request_duration_seconds` (histogram)
-- `http_requests_total` (counter)
-- `active_connections` (gauge)
-
-**Flow:**
-```
-App → /metrics endpoint → Prometheus scrapes (every 5s) → Stored in Prometheus
-```
-
-**Prometheus Configuration:**
-```yaml
-# prometheus/prometheus-dev.yml
-- job_name: 'demo-app'
-  targets: ['host.docker.internal:3001']
-  metrics_path: '/metrics'
-```
-
-**Verify in Prometheus:**
-```bash
-# Query app metrics
-curl 'http://localhost:9090/api/v1/query?query=http_requests_total'
-
-# Check target status
-open http://localhost:9090/targets
-# Should see: demo-app: UP ✅
-```
-
-**Example Metrics in Prometheus:**
-```
-http_requests_total{route="/api/orders",status="200",method="GET"} 150
-http_request_duration_seconds_bucket{route="/api/orders",le="0.1"} 45
-active_connections 3
-```
-
-**Data Types Stored in Prometheus (Direct Path):**
-- **Counters:** `http_requests_total` - Cumulative count of HTTP requests
-- **Histograms:** `http_request_duration_seconds_bucket` - Request duration distribution
-- **Gauges:** `active_connections` - Current number of active connections
-- **Labels:** `route`, `status`, `method` (custom labels from app)
-- **Default Metrics:** Node.js process metrics (CPU, memory, etc.)
-
----
-
-### Path 2: OTel Metrics via Collector
+### Single path: OTel metrics via Collector
 
 **Source:** `app/index.js` using OpenTelemetry SDK with auto-instrumentation
 
@@ -158,21 +74,11 @@ http_server_duration_milliseconds_sum{http_route="/api/orders"} 15000.5
 
 ---
 
-### Path 3: Collector Internal Metrics
+### Collector internal metrics (optional scrape)
 
-**Source:** OTel Collector itself (telemetry)
+**Source:** OTel Collector itself (telemetry on port 8888)
 
-**Metrics Generated:**
-- `otelcol_receiver_accepted_spans_total`
-- `otelcol_exporter_sent_spans_total`
-- `otelcol_processor_batch_batch_send_size`
-
-**Flow:**
-```
-OTel Collector → Internal telemetry (port 8888) → Prometheus scrapes → Stored in Prometheus
-```
-
-**Note:** This is collector health/performance metrics, not application metrics.
+**Metrics:** e.g. `otelcol_receiver_accepted_spans_total`, `otelcol_exporter_sent_spans_total`. Prometheus may scrape `otel-collector:8888` for collector health. Not required for app dashboards.
 
 ---
 
@@ -197,62 +103,50 @@ curl -u admin:admin http://localhost:3000/api/datasources
 
 ---
 
-### Grafana Dashboard: Service Overview
+### Grafana Dashboards (OTel metrics only)
 
-**Location:** `grafana/dashboards/service-overview.json`
+**Data Source:** All panels query **Prometheus**; all app metrics come from the **OTel Collector** scrape (`:8889`). There is no app `/metrics` scrape.
 
-**Data Source:** All panels query from **Prometheus** datasource
-
-#### Panel 1: Request Rate by Route
+#### Service Overview – Panel 1: Request Rate by Route
 
 **PromQL Query:**
 ```promql
-rate(http_requests_total[1m])
+rate(http_server_duration_milliseconds_count[1m])
 ```
 
 **Data Source in Prometheus:**
-- **Metric:** `http_requests_total` (from app's prom-client)
-- **Path:** Direct scrape from `app:3001/metrics`
-- **Labels:** `route`, `status`, `method`
+- **Metric:** `http_server_duration_milliseconds_count` (from OTel auto-instrumentation)
+- **Path:** Prometheus scrapes `otel-collector:8889/metrics`
+- **Labels:** `http_route`, `http_status_code`, `http_method`
 
 **How it Populates:**
-1. App generates `http_requests_total` counter
-2. Prometheus scrapes every 5s
-3. Grafana queries `rate(http_requests_total[1m])` from Prometheus
-4. Panel displays time series
+1. App sends OTel metrics to collector; collector exports at :8889
+2. Prometheus scrapes collector every 15s
+3. Grafana queries `rate(http_server_duration_milliseconds_count[1m])`
+4. Panel displays time series (legend: `{{http_route}}`)
 
 ---
 
-#### Panel 2: Error Rate by Route
+#### Service Overview – Panel 2: Error Rate by Route
 
 **PromQL Query:**
 ```promql
-sum(rate(http_requests_total{status=~"5.."}[1m])) by (route)
-/
-sum(rate(http_requests_total[1m])) by (route)
-* 100
+sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[1m])) by (http_route)
+/ sum(rate(http_server_duration_milliseconds_count[1m])) by (http_route) * 100
 ```
 
 **Data Source in Prometheus:**
-- **Metric:** `http_requests_total` (from app's prom-client)
-- **Path:** Direct scrape from `app:3001/metrics`
-- **Filters:** `status=~"5.."` (5xx errors)
-
-**How it Populates:**
-1. App increments `http_requests_total{status="500"}` on errors
-2. Prometheus stores with status label
-3. Grafana calculates error rate percentage
-4. Panel shows error rate over time
+- **Metric:** `http_server_duration_milliseconds_count` (OTel)
+- **Path:** Collector :8889
+- **Filters:** `http_status_code=~"5.."` (5xx errors)
 
 ---
 
-#### Panel 3: P99 Latency by Route
+#### Service Overview – Panel 3: P99 Latency by Route
 
 **PromQL Query:**
 ```promql
-histogram_quantile(0.99, 
-  sum(rate(http_request_duration_seconds_bucket[1m])) by (le, route)
-)
+histogram_quantile(0.99, sum(rate(http_server_duration_milliseconds_bucket[1m])) by (le, http_route))
 ```
 
 **Data Source in Prometheus:**
@@ -261,30 +155,16 @@ histogram_quantile(0.99,
 - **Calculation:** Uses histogram buckets to compute 99th percentile
 
 **How it Populates:**
-1. App records latency in histogram buckets
-2. Prometheus stores bucket counts
-3. Grafana calculates P99 using `histogram_quantile()`
-4. Panel displays latency percentiles
+1. OTel auto-instrumentation records HTTP server duration in milliseconds; collector exports at :8889
+2. Prometheus scrapes collector and stores bucket counts
+3. Grafana calculates P99 using `histogram_quantile()` (unit: ms)
+4. Panel displays latency percentiles by `http_route`
 
 ---
 
-#### Panel 4: Active Connections
+#### Panel 4: (Removed in Option A)
 
-**PromQL Query:**
-```promql
-active_connections
-```
-
-**Data Source in Prometheus:**
-- **Metric:** `active_connections` (from app's prom-client)
-- **Path:** Direct scrape from `app:3001/metrics`
-- **Type:** Gauge (current value)
-
-**How it Populates:**
-1. App updates gauge on each connection
-2. Prometheus scrapes current value
-3. Grafana displays as gauge panel
-4. Shows real-time connection count
+The **Active Connections** panel was removed; the app no longer exposes that metric (no prom-client). Optional follow-up: add a custom OTel gauge for active connections if needed.
 
 ---
 
@@ -292,26 +172,23 @@ active_connections
 
 **PromQL Query:**
 ```promql
-sum(rate(http_requests_total{status=~"5.."}[1m])) 
-/ 
-sum(rate(http_requests_total[1m])) 
-* 100
+sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[1m])) 
+/ sum(rate(http_server_duration_milliseconds_count[1m])) * 100
 ```
 
 **Data Source in Prometheus:**
-- **Metric:** `http_requests_total` (from app's prom-client)
-- **Path:** Direct scrape from `app:3001/metrics`
-- **Calculation:** Overall error rate percentage
+- **Metric:** `http_server_duration_milliseconds_count` (OTel)
+- **Path:** Collector :8889
+- **Calculation:** Overall 5xx error rate percentage
 
 **How it Populates:**
-1. App tracks all requests with status codes
-2. Prometheus stores aggregated counters
-3. Grafana calculates overall error rate
-4. Panel shows green (<5%) or red (>5%)
+1. OTel exports request counts with `http_status_code`
+2. Prometheus stores from collector scrape
+3. Grafana calculates overall error rate; panel shows green (<5%) or red (>5%)
 
 ---
 
-## 🔄 Complete Data Journey
+## 🔄 Complete Data Journey (Single Pipeline)
 
 ### Example: Single API Request
 
@@ -322,31 +199,21 @@ curl http://localhost:3001/api/orders
 
 **2. App Processes:**
 - Express handles request
-- **prom-client** increments `http_requests_total{route="/api/orders",status="200"}`
-- **prom-client** records `http_request_duration_seconds` in histogram
-- **OTel SDK** creates span and sends to collector via OTLP
-- **OTel SDK** sends metrics to collector via OTLP
+- **OTel SDK** (auto-instrumentation) creates span and sends to collector via OTLP
+- **OTel SDK** exports metrics (e.g. `http_server_duration_milliseconds`) to collector via OTLP
+- No `/metrics` endpoint; no prom-client
 
-**3. Prometheus Scrapes (Path 1 - Direct):**
-- Scrapes `app:3001/metrics` every 5s
-- Receives: `http_requests_total`, `http_request_duration_seconds`, `active_connections`
-- Stores in time series database
+**3. OTel Collector:**
+- Receives OTLP data on port 4317 (traces + metrics)
+- Processes and exports metrics at `otel-collector:8889/metrics`
 
-**4. OTel Collector Processes (Path 2 - Via OTel):**
-- Receives OTLP data on port 4317
-- Processes traces and metrics
-- Exports metrics to `otel-collector:8889/metrics`
+**4. Prometheus:**
+- Scrapes only `otel-collector:8889` (and optionally :8888); does **not** scrape the app
+- Stores `http_server_duration_milliseconds_*` and other OTel metrics
 
-**5. Prometheus Scrapes (Path 2 - Via Collector):**
-- Scrapes `otel-collector:8889/metrics` every 15s
-- Receives: `http_server_duration_milliseconds`, etc.
-- Stores in time series database
-
-**6. Grafana Queries:**
-- Dashboard panel queries: `rate(http_requests_total[1m])`
-- Grafana sends PromQL query to Prometheus
-- Prometheus returns time series data
-- Grafana renders graph/panel
+**5. Grafana:**
+- Dashboard panels query e.g. `rate(http_server_duration_milliseconds_count[1m])`, `histogram_quantile(...)`
+- Grafana sends PromQL to Prometheus and renders panels
 
 ---
 

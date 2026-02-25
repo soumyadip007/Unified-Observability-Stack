@@ -4,13 +4,14 @@ version: '3.8'
 # Run app and load-generator locally with: npm run dev
 
 services:
-  # OpenTelemetry Collector - Receives traces from app
+  # OpenTelemetry Collector - Receives traces/metrics from app
   otel-collector:
     image: otel/opentelemetry-collector:latest
     container_name: otel-collector-dev
     command: ["--config=/etc/otel-collector-config.yml"]
     volumes:
       - ./otel-collector/otel-collector-config.yml:/etc/otel-collector-config.yml
+      - otel-collector-data-dev:/var/lib/otelcol
     ports:
       - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"   # OTLP HTTP receiver (for future use)
@@ -84,3 +85,4 @@ networks:
 volumes:
   prometheus-data-dev:
   grafana-data-dev:
+  otel-collector-data-dev:

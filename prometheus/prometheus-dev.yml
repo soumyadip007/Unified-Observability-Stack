@@ -6,15 +6,6 @@ global:
     environment: 'dev'
 
 scrape_configs:
-  # Scrape the Node.js app metrics endpoint (running locally)
-  # Use host.docker.internal to access host machine from Docker container
-  - job_name: 'demo-app'
-    static_configs:
-      - targets: ['host.docker.internal:3001']
-    metrics_path: '/metrics'
-    scrape_interval: 5s
-    scrape_timeout: 5s
-
   # Scrape the OpenTelemetry Collector metrics (trace-derived metrics and internal metrics)
   - job_name: 'otel-collector'
     static_configs:

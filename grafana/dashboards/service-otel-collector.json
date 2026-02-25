@@ -1,0 +1,74 @@
+{
+  "title": "Service – OTel & Collector",
+  "tags": ["observability", "demo", "otel", "collector"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "OTel app request count (by http_route)",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+      "targets": [{
+        "expr": "rate(http_server_duration_milliseconds_count[1m])",
+        "legendFormat": "{{http_route}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps", "custom": {"drawStyle": "line", "fillOpacity": 10}}},
+      "description": "Metrics from OTel auto-instrumentation (app → collector → Prometheus)"
+    },
+    {
+      "id": 2,
+      "title": "Collector: receiver accepted spans",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+      "targets": [{
+        "expr": "rate(otelcol_receiver_accepted_spans_total[1m])",
+        "legendFormat": "{{receiver}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "fillOpacity": 10}}},
+      "description": "From collector telemetry (scrape :8888)"
+    },
+    {
+      "id": 3,
+      "title": "Collector: exporter sent spans",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 6},
+      "targets": [{
+        "expr": "rate(otelcol_exporter_sent_spans_total[1m])",
+        "legendFormat": "{{exporter}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "fillOpacity": 10}}},
+      "description": "From collector telemetry (scrape :8888)"
+    },
+    {
+      "id": 4,
+      "title": "Collector: receiver accepted metric points",
+      "type": "timeseries",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 6},
+      "targets": [{
+        "expr": "rate(otelcol_receiver_accepted_metric_points_total[1m])",
+        "legendFormat": "{{receiver}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "fillOpacity": 10}}},
+      "description": "From collector telemetry (scrape :8888)"
+    },
+    {
+      "id": 5,
+      "title": "Info",
+      "type": "text",
+      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 12},
+      "options": {"content": "**OTel pipeline:** App pushes OTLP to collector. Prometheus scrapes collector :8889 (app metrics) and :8888 (collector telemetry). Panels above show both app-derived metrics and collector internal metrics.", "mode": "markdown"}
+    }
+  ],
+  "time": {"from": "now-30m", "to": "now"},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "editable": true,
+  "links": []
+}

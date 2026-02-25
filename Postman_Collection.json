@@ -144,22 +144,22 @@
 			"response": []
 		},
 		{
-			"name": "Prometheus Metrics",
+			"name": "App metrics (OTel only - no /metrics)",
 			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:3001/metrics",
+					"raw": "http://localhost:3001/health",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "3001",
 					"path": [
-						"metrics"
+						"health"
 					]
 				},
-				"description": "Get Prometheus metrics from the app"
+				"description": "App no longer exposes /metrics. All metrics come from OTel; use 'OTel Collector Metrics' (localhost:8889/metrics) for app metrics."
 			},
 			"response": []
 		},
@@ -226,12 +226,12 @@
 			"response": []
 		},
 		{
-			"name": "Prometheus Query - App Metrics",
+			"name": "Prometheus Query - App Metrics (OTel)",
 			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:9090/api/v1/query?query=http_requests_total",
+					"raw": "http://localhost:9090/api/v1/query?query=http_server_duration_milliseconds_count",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -249,7 +249,7 @@
 						}
 					]
 				},
-				"description": "Query Prometheus for app metrics (from prom-client)"
+				"description": "Query Prometheus for app metrics (from OTel collector scrape)"
 			},
 			"response": []
 		},
