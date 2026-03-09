@@ -38,63 +38,9 @@ try {
 
 // Now import Express and other modules
 const express = require('express');
-const client = require('prom-client');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Create a Registry to register the metrics
-const register = new client.Registry();
-
-// Add default metrics (CPU, memory, etc.)
-client.collectDefaultMetrics({ register });
-
-// Create custom metrics
-const httpRequestDuration = new client.Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['route', 'status', 'method'],
-  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
-  registers: [register],
-});
-
-const httpRequestsTotal = new client.Counter({
-  name: 'http_requests_total',
-  help: 'Total number of HTTP requests',
-  labelNames: ['route', 'status', 'method'],
-  registers: [register],
-});
-
-const activeConnections = new client.Gauge({
-  name: 'active_connections',
-  help: 'Number of active connections',
-  registers: [register],
-});
-
-let connectionCount = 0;
-
-// Middleware to track connections
-app.use((req, res, next) => {
-  connectionCount++;
-  activeConnections.set(connectionCount);
-
-  const start = Date.now();
-  const route = req.path;
-  const method = req.method;
-
-  res.on('finish', () => {
-    const duration = (Date.now() - start) / 1000;
-    const status = res.statusCode;
-
-    httpRequestDuration.observe({ route, status, method }, duration);
-    httpRequestsTotal.inc({ route, status, method });
-    
-    connectionCount--;
-    activeConnections.set(connectionCount);
-  });
-
-  next();
-});
 
 // Helper function to simulate random delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -168,12 +114,6 @@ app.get('/api/slow', async (req, res) => {
   });
 });
 
-// GET /metrics - Prometheus metrics endpoint
-app.get('/metrics', async (req, res) => {
-  res.set('Content-Type', register.contentType);
-  res.end(await register.metrics());
-});
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
@@ -182,7 +122,7 @@ app.get('/health', (req, res) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Demo app listening on port ${PORT}`);
-  console.log(`Metrics available at http://localhost:${PORT}/metrics`);
+  console.log('Metrics via OpenTelemetry only (no /metrics endpoint)');
 });
 
 // Graceful shutdown

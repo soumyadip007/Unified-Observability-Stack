@@ -4,17 +4,19 @@ version: '3.8'
 # Run app and load-generator locally with: npm run dev
 
 services:
-  # OpenTelemetry Collector - Receives traces from app
+  # OpenTelemetry Collector - Receives traces/metrics from app (contrib has Prometheus exporter)
   otel-collector:
-    image: otel/opentelemetry-collector:latest
+    image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector-dev
     command: ["--config=/etc/otel-collector-config.yml"]
     volumes:
       - ./otel-collector/otel-collector-config.yml:/etc/otel-collector-config.yml
+      - otel-collector-data-dev:/var/lib/otelcol
     ports:
       - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"   # OTLP HTTP receiver (for future use)
-      - "8889:8889"   # Prometheus exporter metrics
+      - "8889:8889"   # Prometheus exporter (app metrics)
+      - "8888:8888"   # Collector telemetry (optional for Prometheus scrape)
     networks:
       - observability-demo
     healthcheck:
@@ -24,10 +26,12 @@ services:
       retries: 3
       start_period: 10s
 
-  # Prometheus - Scrapes metrics from app and otel-collector
+  # Prometheus - Scrapes OTel collector via host (host.docker.internal:8889)
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus-dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # So Prometheus can reach collector on host ports (Linux + Mac/Windows)
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -84,3 +88,4 @@ networks:
 volumes:
   prometheus-data-dev:
   grafana-data-dev:
+  otel-collector-data-dev:

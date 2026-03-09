@@ -120,43 +120,30 @@
 
 ---
 
-## 6. Metrics Endpoint
-**Endpoint:** `GET http://localhost:3001/metrics`
+## 6. Metrics (Option A: OTel only)
+**App:** No `/metrics` endpoint. Metrics are sent via OpenTelemetry to the collector.
 
-**Result:** ✅ PASS
-- Returns Prometheus format metrics
-- Includes:
-  - `http_request_duration_seconds` (histogram)
-  - `http_requests_total` (counter)
-  - `active_connections` (gauge)
-  - Default Node.js metrics (CPU, memory, etc.)
+**Endpoint for app metrics:** `GET http://localhost:8889/metrics` (OTel Collector)
 
-**Sample Output:**
-```
-# HELP http_request_duration_seconds Duration of HTTP requests in seconds
-# TYPE http_request_duration_seconds histogram
-http_request_duration_seconds_bucket{le="0.005",route="/health",status="200",method="GET"} 1
-http_request_duration_seconds_bucket{le="0.01",route="/health",status="200",method="GET"} 1
-...
-```
+**Result:** ✅ PASS (after Option A revamp)
+- App pushes OTLP to collector; collector exposes at :8889
+- Prometheus scrapes only the collector (no app scrape)
+- Metrics: `http_server_duration_milliseconds_count`, `http_server_duration_milliseconds_bucket`, etc., with labels `http_route`, `http_status_code`, `http_method`
 
 ---
 
 ## 7. OTel Collector Metrics
 **Endpoint:** `GET http://localhost:8889/metrics`
 
-**Status:** ⚠️ Empty (OTel not sending traces yet - packages removed temporarily)
-
-**Note:** OTel collector is running but no metrics because app doesn't have OTel packages installed yet.
+**Status:** ✅ Primary source of app metrics (Option A). Contains OTel auto-instrumentation metrics after app sends traffic.
 
 ---
 
 ## 8. Prometheus Targets
 **Endpoint:** `GET http://localhost:9090/api/v1/targets`
 
-**Status:** ⚠️ Needs Fix
-- Prometheus is configured to scrape `host.docker.internal:3000` but app runs on port `3001`
-- **Fix Applied:** Updated `prometheus-dev.yml` to use port 3001
+**Status:** ✅ Option A
+- Prometheus scrapes only `otel-collector:8889` (and optionally :8888). No `demo-app` target.
 
 ---
 
@@ -169,17 +156,16 @@ http_request_duration_seconds_bucket{le="0.01",route="/health",status="200",meth
 | `/api/orders` | ✅ PASS | Latency within range, 2% error rate working |
 | `/api/slow` | ✅ PASS | Latency spikes working (2-5s) |
 | Force Error | ✅ PASS | Error injection working |
-| `/metrics` | ✅ PASS | Prometheus metrics exposed |
-| OTel Metrics | ⚠️ Empty | OTel packages removed (will add back) |
-| Prometheus Scrape | ⚠️ Fixed | Updated to port 3001 |
+| App `/metrics` | N/A | Removed in Option A; metrics via OTel only |
+| OTel Collector :8889 | ✅ PASS | Primary app metrics source |
+| Prometheus Scrape | ✅ | Collector only (no app scrape) |
 
 ## Next Steps
 
 1. ✅ All API endpoints tested and working
-2. ✅ Metrics endpoint working
-3. ⚠️ Fix Prometheus scrape target (port 3001) - **DONE**
-4. ⚠️ Add OTel packages back with correct versions
-5. ✅ Postman collection created
+2. ✅ Metrics via OTel only (Option A); collector :8889 is source
+3. ✅ Prometheus scrapes collector only
+4. ✅ Postman collection updated for OTel metrics
 
 ---
 

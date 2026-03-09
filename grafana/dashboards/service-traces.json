@@ -1,0 +1,25 @@
+{
+  "title": "Service – Traces",
+  "tags": ["observability", "demo", "otel", "traces"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Coming soon",
+      "type": "text",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+      "options": {
+        "content": "## Traces dashboard\n\nWhen a trace backend (e.g. Tempo or Jaeger) is added to the stack:\n\n- Configure a Grafana datasource for the trace store.\n- Add panels or links to trace explorer / trace ID search.\n- Optionally add span count or duration metrics derived from traces.\n\n**Current setup:** The app sends traces to the OTel Collector (debug exporter). Add an exporter (e.g. OTLP to Tempo) in the collector config and provision a trace datasource in Grafana to enable this dashboard.",
+        "mode": "markdown"
+      }
+    }
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "editable": true,
+  "links": []
+}

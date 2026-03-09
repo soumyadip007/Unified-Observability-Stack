@@ -10,7 +10,7 @@ A production-ready observability stack demonstration using **Prometheus**, **Gra
 - OpenTelemetry distributed tracing for root cause analysis
 - Automated alerting with Grafana
 
-## 🏗️ Architecture
+## 🏗️ Architecture (OTel-first, single pipeline)
 
 ```
 ┌─────────────────┐
@@ -19,36 +19,36 @@ A production-ready observability stack demonstration using **Prometheus**, **Gra
                         │
 ┌─────────────────┐     │     ┌──────────────────┐
 │   Node.js App   │ ◄───┼─────┤  OTel Collector  │
-│  (3 endpoints)  │     │     └──────────────────┘
-│  /metrics       │     │              │
-└─────────────────┘     │              │
-         │               │              │
-         │               │              ▼
-         │               │     ┌──────────────────┐
-         └───────────────┼─────┤   Prometheus     │
-                         │     └──────────────────┘
-                         │              │
-                         │              ▼
-                         │     ┌──────────────────┐
-                         └─────┤     Grafana      │
-                               │  (Dashboards +   │
-                               │    Alerts)       │
-                               └──────────────────┘
+│  (OTel SDK only)│     │     │  :4317, :8889    │
+│                 │     │     └────────┬─────────┘
+└────────┬────────┘     │              │
+         │ OTLP push    │              │ Prometheus scrapes
+         └──────────────┼──────────────┼──────────────┐
+                        │              ▼              │
+                        │     ┌──────────────────┐   │
+                        │     │   Prometheus     │   │
+                        │     └────────┬─────────┘   │
+                        │              │             │
+                        │              ▼             │
+                        │     ┌──────────────────┐  │
+                        └─────┤     Grafana       │  │
+                              │  (Dashboards +    │  │
+                              │    Alerts)       │  │
+                              └──────────────────┘  │
 ```
 
 ### Data Flow
 
-- **Metrics**: App endpoints → `/metrics` → Prometheus (direct scraping, pull model)
-- **Traces**: App endpoints → OpenTelemetry Collector → Prometheus (push model via OTLP)
+- **Metrics & traces**: App → OpenTelemetry (OTLP push) → OTel Collector → Prometheus scrapes collector only. No app `/metrics`; no direct scrape of the app.
 
 ## 📦 Services
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| **app** | 3000 | Node.js API with 3 endpoints (`/api/orders`, `/api/users`, `/api/slow`) |
+| **app** | 3000 | Node.js API with 3 endpoints (`/api/orders`, `/api/users`, `/api/slow`). Metrics via OTel only (no `/metrics`). |
 | **load-generator** | - | Sends ~10 req/s traffic, supports CHAOS_MODE |
-| **otel-collector** | 4317, 4318, 8889 | Receives traces, exports to Prometheus |
-| **prometheus** | 9090 | Scrapes and stores metrics |
+| **otel-collector** | 4317, 4318, 8889, 8888 | Receives OTLP (metrics + traces), exports to Prometheus (:8889) |
+| **prometheus** | 9090 | Scrapes collector only (no app scrape) |
 | **grafana** | 3000 | Dashboards and alerting |
 
 ## 🚀 Quick Start
@@ -83,10 +83,9 @@ docker compose up --build
   - Check targets: http://localhost:9090/targets
   - Query metrics: http://localhost:9090/graph
 
-- **App API**: http://localhost:3000
+- **App API**: http://localhost:3000 (or 3001 in dev)
   - Health: http://localhost:3000/health
-  - Metrics: http://localhost:3000/metrics
-  - Endpoints:
+  - Endpoints (metrics via OTel only; no `/metrics` on app):
     - `GET /api/orders` - Random latency 50-300ms, 2% error rate
     - `GET /api/users` - Fast, stable (~10-50ms)
     - `GET /api/slow` - Latency spikes 2-5 seconds
@@ -112,13 +111,12 @@ docker compose up --build
 - **Request Rate panel**: Shows traffic across all three endpoints (~10 req/s total)
 - **P99 Latency**: Stable, under 300ms for most routes
 - **Error Rate**: Baseline 2% error rate on `/api/orders` (acceptable)
-- **Active Connections**: Shows current connection count
 - **Service Health**: Green indicator (< 5% error rate)
 
 **Narrative points:**
 - "This shows our real-time observability stack in action"
-- "Metrics flow from app → Prometheus → Grafana"
-- "We're monitoring request rate, latency, errors, and active connections"
+- "Metrics flow from app → OTel Collector → Prometheus → Grafana (single pipeline)"
+- "We're monitoring request rate, latency, and errors via OpenTelemetry"
 
 ### Step 3: Trigger the Incident (CHAOS MODE)
 
@@ -188,15 +186,14 @@ docker compose up load-generator
 - "Error rate is dropping, health is recovering"
 - "This is what MTTD improvement looks like - we caught this in 30 seconds"
 
-## 📈 Grafana Dashboard Panels
+## 📈 Grafana Dashboards
 
-The **Service Overview** dashboard includes:
-
-1. **Request Rate by Route** - `rate(http_requests_total[1m])`
-2. **Error Rate by Route** - Percentage of 5xx errors
-3. **P99 Latency by Route** - 99th percentile latency
-4. **Active Connections** - Current connection gauge
-5. **Overall Service Health** - Green/Red health indicator
+- **Service Overview** – Request rate, error rate %, P99 latency, overall health (OTel metrics: `http_server_duration_milliseconds_*`, `http_route`, `http_status_code`).
+- **Service – Request / HTTP** – Request rate by route, method, status.
+- **Service – Latency / SLO** – P50, P95, P99 and average latency by route.
+- **Service – Errors** – Error rate by route, 4xx vs 5xx, top error routes.
+- **Service – OTel & Collector** – OTel app metrics and collector telemetry.
+- **Service – Traces** – Placeholder for when a trace backend (e.g. Tempo) is added.
 
 ## 🚨 Alerting
 
@@ -206,7 +203,7 @@ The **Service Overview** dashboard includes:
 2. Click **Create alert rule**
 3. Configure:
    - **Name**: High Error Rate Detected
-   - **Query**: `sum(rate(http_requests_total{status=~"5.."}[1m])) / sum(rate(http_requests_total[1m])) * 100`
+   - **Query**: `sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[1m])) / sum(rate(http_server_duration_milliseconds_count[1m])) * 100`
    - **Condition**: IS ABOVE `5`
    - **Evaluation**: Every `15s`
    - **For**: `30s`
@@ -224,11 +221,9 @@ The **Service Overview** dashboard includes:
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: OTel Collector endpoint
 - `OTEL_SERVICE_NAME`: Service name for traces
 
-### Metrics Exposed
+### Metrics (OTel only)
 
-- `http_request_duration_seconds` (Histogram) - Request latency
-- `http_requests_total` (Counter) - Total requests
-- `active_connections` (Gauge) - Active connections
+Metrics come from the app via OpenTelemetry (auto-instrumentation) and are exposed by the collector at `:8889/metrics`. Prometheus scrapes only the collector. Example metrics: `http_server_duration_milliseconds_count`, `http_server_duration_milliseconds_bucket`, with labels `http_route`, `http_status_code`, `http_method`.
 
 ## 🐛 Troubleshooting
 
@@ -246,8 +241,8 @@ lsof -i :9090
 ```
 
 ### Metrics not appearing
-1. Verify app is exposing `/metrics`: http://localhost:3000/metrics
-2. Check Prometheus targets: http://localhost:9090/targets
+1. Verify OTel collector is receiving data: http://localhost:8889/metrics (when running in Docker, or from host if port is mapped)
+2. Check Prometheus targets: http://localhost:9090/targets (only otel-collector and prometheus; no app scrape)
 3. Verify scrape config in `prometheus/prometheus.yml`
 
 ### Dashboard not loading
@@ -266,6 +261,10 @@ lsof -i :9090
 Unified-Observability-Stack/
 ├── docker-compose.yml          # Main orchestration file
 ├── README.md                    # This file
+├── docs/                        # Documentation
+│   ├── ARCHITECTURE_AND_DATA_FLOW.md
+│   ├── ProposedRevampPlan.md
+│   └── OptionA-ImplementationPlan.md
 ├── app/                         # Node.js API
 │   ├── Dockerfile
 │   ├── index.js
@@ -299,6 +298,13 @@ docker compose down
 # Stop and remove volumes (clean slate)
 docker compose down -v
 ```
+
+## 📚 Documentation
+
+- **[Architecture & Data Flow](docs/ARCHITECTURE_AND_DATA_FLOW.md)** — Pull vs push model, OTel vs Prometheus relationship, and data flow
+- **[Proposed Revamp Plan](docs/ProposedRevampPlan.md)** — Simplified, industry-standard architecture options (OTel-first vs Prometheus-first vs document-only)
+- **[Option A Implementation Plan](docs/OptionA-ImplementationPlan.md)** — Step-by-step plan to implement OTel-first (single pipeline): what to remove and what to change
+- [VERIFICATION_GUIDE.md](VERIFICATION_GUIDE.md) — How data populates in Prometheus and Grafana, segregation of OTel vs direct metrics
 
 ## 📚 Learn More
 

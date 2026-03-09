@@ -52,7 +52,7 @@ echo ""
 echo -e "${BLUE}📊 Access services:${NC}"
 echo "   - Grafana: http://localhost:3000 (admin/admin)"
 echo "   - Prometheus: http://localhost:9090"
-echo "   - OTel Collector: http://localhost:8889/metrics"
+echo "   - App metrics: via OTel only → http://localhost:8889/metrics (collector)"
 echo ""
 
 # Install app dependencies if needed

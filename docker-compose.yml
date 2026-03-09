@@ -42,9 +42,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # OpenTelemetry Collector - Receives traces from app
+  # OpenTelemetry Collector - Receives traces/metrics from app (contrib has Prometheus exporter)
   otel-collector:
-    image: otel/opentelemetry-collector:latest
+    image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector
     command: ["--config=/etc/otel-collector-config.yml"]
     volumes:

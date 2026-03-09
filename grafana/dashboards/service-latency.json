@@ -1,0 +1,67 @@
+{
+  "title": "Service – Latency / SLO",
+  "tags": ["observability", "demo", "otel", "latency"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "P50 latency by route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [{
+        "expr": "histogram_quantile(0.5, sum(rate(http_server_duration_milliseconds_bucket[5m])) by (le, http_route))",
+        "legendFormat": "{{http_route}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms", "custom": {"drawStyle": "line", "lineInterpolation": "smooth"}}},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "id": 2,
+      "title": "P95 latency by route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum(rate(http_server_duration_milliseconds_bucket[5m])) by (le, http_route))",
+        "legendFormat": "{{http_route}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms", "custom": {"drawStyle": "line", "lineInterpolation": "smooth"}}},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "id": 3,
+      "title": "P99 latency by route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, sum(rate(http_server_duration_milliseconds_bucket[5m])) by (le, http_route))",
+        "legendFormat": "{{http_route}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms", "custom": {"drawStyle": "line", "lineInterpolation": "smooth"}}},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    },
+    {
+      "id": 4,
+      "title": "Average latency by route",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{
+        "expr": "sum(rate(http_server_duration_milliseconds_sum[5m])) by (http_route) / sum(rate(http_server_duration_milliseconds_count[5m])) by (http_route)",
+        "legendFormat": "{{http_route}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "ms", "custom": {"drawStyle": "line", "fillOpacity": 10}}},
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}}
+    }
+  ],
+  "time": {"from": "now-30m", "to": "now"},
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "editable": true,
+  "links": []
+}

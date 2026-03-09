@@ -6,7 +6,7 @@
 
 # Alert Rule: High Error Rate
 # Name: High Error Rate Detected
-# Condition: sum(rate(http_requests_total{status=~"5.."}[1m])) / sum(rate(http_requests_total[1m])) * 100 > 5
+# Condition (OTel metrics): sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[1m])) / sum(rate(http_server_duration_milliseconds_count[1m])) * 100 > 5
 # Evaluation: Every 15s
 # For: 30s (2 evaluation periods)
 # Severity: critical

@@ -59,7 +59,7 @@ CHAOS_MODE=true npm run dev
 ## Environment Variables
 
 ### App (app/index.js)
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: Defaults to `http://localhost:4317` (OTel optional, disabled for now)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Defaults to `http://localhost:4317` (required for metrics; ensure Docker collector is running so this port is available)
 - `OTEL_SERVICE_NAME`: Defaults to `demo-app`
 - `PORT`: Defaults to `3001` (3000 is used by Grafana)
 
@@ -71,7 +71,7 @@ CHAOS_MODE=true npm run dev
 
 - **App API**: http://localhost:3001 (port 3001 to avoid conflict with Grafana)
   - Health: http://localhost:3001/health
-  - Metrics: http://localhost:3001/metrics
+  - Metrics: via OTel only (no `/metrics` on app). Collector exposes at http://localhost:8889/metrics when running in Docker.
   - Endpoints: `/api/orders`, `/api/users`, `/api/slow`
 
 - **Grafana**: http://localhost:3000
